@@ -29,7 +29,7 @@ public class IdleRetentionStrategy extends RetentionStrategy<SlaveComputer>
         long age = System.currentTimeMillis()-c.getIdleStartMilliseconds();
         long maxAge = maxIdleMinutes*60*1000;
         LOGGER.log(Level.FINE, "Instance: " + c.getDisplayName() + " Age: " + age + " Max Age:" + maxAge);
-        return System.currentTimeMillis()-c.getIdleStartMilliseconds() > (maxIdleMinutes*60*1000);
+        return age > maxAge;
     }
 
     @Override public long check(final SlaveComputer c) {
@@ -54,8 +54,18 @@ public class IdleRetentionStrategy extends RetentionStrategy<SlaveComputer>
                         shouldAcceptTasks = false;
                     }
                 } else {
-                    if (c.isOffline() && !c.isConnecting() && c.isLaunchSupported())
-                        c.tryReconnect();
+                    if (c.isOffline() && !c.isConnecting() && c.isLaunchSupported()) {
+                        LOGGER.log(Level.FINE,
+                            "Reconnecting " + c.getDisplayName() + ":"
+                            + " isOffline " + c.isOffline()
+                            + " isConnecting:" + c.isConnecting()
+                            + " isLaunchSupported: " + c.isLaunchSupported()
+                            + " offlineCause: " + c.getOfflineCauseReason()
+                        );
+                        String offlineCauseReason = c.getOfflineCauseReason();
+                        boolean validOfflineCauseReason = offlineCauseReason != null && !offlineCauseReason.isEmpty();
+                        if (validOfflineCauseReason) c.tryReconnect();
+                    }
                 }
             } finally {
                 c.setAcceptingTasks(shouldAcceptTasks);
