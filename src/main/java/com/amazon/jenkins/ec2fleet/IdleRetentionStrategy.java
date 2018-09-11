@@ -56,7 +56,7 @@ public class IdleRetentionStrategy extends RetentionStrategy<SlaveComputer>
                 } else {
                     if (c.isOffline() && !c.isConnecting() && c.isLaunchSupported()) {
                         LOGGER.log(Level.FINE,
-                            "Reconnecting " + c.getDisplayName() + ":"
+                            c.getDisplayName() + "is offline:"
                             + " isOffline " + c.isOffline()
                             + " isConnecting:" + c.isConnecting()
                             + " isLaunchSupported: " + c.isLaunchSupported()
@@ -64,7 +64,8 @@ public class IdleRetentionStrategy extends RetentionStrategy<SlaveComputer>
                         );
                         String offlineCauseReason = c.getOfflineCauseReason();
                         boolean validOfflineCauseReason = offlineCauseReason != null && !offlineCauseReason.isEmpty();
-                        if (validOfflineCauseReason) c.tryReconnect();
+                        long age = System.currentTimeMillis()-c.getIdleStartMilliseconds();
+                        if (validOfflineCauseReason || age>1000) c.tryReconnect();
                     }
                 }
             } finally {
