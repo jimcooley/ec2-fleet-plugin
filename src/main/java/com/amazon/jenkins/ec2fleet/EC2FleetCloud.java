@@ -299,12 +299,19 @@ public class EC2FleetCloud extends Cloud
         LOGGER.log(Level.FINE, "# of nodes:" + Jenkins.getInstance().getNodes().size());
 
         // Check the nodes to see if we have some new ones
-        final Set<String> newInstances = new HashSet<String>(curStatus.getInstances());
+        final Set<String> fleetInstances = new HashSet<String>(curStatus.getInstances());
+        // deadInstances = instancesSeenCache \ fleetInstances (difference of sets)
+        // if Jenkins has seen an instance as a part of this fleet, but aws says it is gone from the fleet, then it has been terminated by AWS
+        final Set<String> deadInstances = new HashSet<String>();
+        deadInstances.addAll(instancesSeenCache);
+        deadInstances.removeAll(fleetInstances);
+        // remove all fleet instances that have been terminated by AWS
+        instancesDyingCache.addAll(deadInstances);
         instancesSeenCache.clear();
-        LOGGER.log(Level.FINE, "Fleet (" + getLabelString() + ") contains instances [" + join(", ", newInstances) + "]");
+        LOGGER.log(Level.FINE, "Fleet (" + getLabelString() + ") contains instances [" + join(", ", fleetInstances) + "]");
         LOGGER.log(Level.FINE, "Jenkins contains dying instances [" + join(", ", instancesDyingCache) + "]");
         for(final Node node : Jenkins.getInstance().getNodes()) {
-            if (newInstances.contains(node.getNodeName())) {
+            if (fleetInstances.contains(node.getNodeName())) {
                 // instancesSeenCache should only have the intersection of nodes
                 // known by Jenkins and by the fleet.
                 instancesSeenCache.add(node.getNodeName());
@@ -312,7 +319,6 @@ public class EC2FleetCloud extends Cloud
                 LOGGER.log(Level.INFO, "Fleet (" + getLabelString() + ") no longer has the instance " + node.getNodeName() + ", removing from Jenkins.");
                 removeNode(node.getNodeName());
                 instancesDyingCache.remove(node.getNodeName());
-                instancesSeenCache.remove(node.getNodeName());
             }
         }
 
@@ -320,7 +326,9 @@ public class EC2FleetCloud extends Cloud
         // Jenkins and the fleet.
         instancesDyingCache.retainAll(instancesSeenCache);
 
-        // New instances are only ones that Jenkins hasn't seen
+        // New instances are only ones on the fleet that Jenkins hasn't seen
+        final Set<String> newInstances = new HashSet<String>();
+        newInstances.addAll(fleetInstances);
         newInstances.removeAll(instancesSeenCache);
 
         // Update the label for all seen instances, unless they're dying
