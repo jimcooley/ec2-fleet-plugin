@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Executor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
@@ -286,6 +287,10 @@ public class EC2FleetCloud extends Cloud
             final Node n = jenkins.getNode(instanceId);
             if (n != null) {
                 try {
+                    final Computer c = n.getComputer();
+                    for (Executor e : c.getExecutors()) {
+                       e.doStop();
+                    }
                     jenkins.removeNode(n);
                 } catch(final Exception ex) {
                     LOGGER.log(Level.WARNING, "Error removing node " + instanceId);
